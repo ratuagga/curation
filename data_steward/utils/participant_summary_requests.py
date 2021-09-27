@@ -40,6 +40,10 @@ FIELDS_OF_INTEREST_FOR_VALIDATION = [
     'dateOfBirth', 'sex'
 ]
 
+FIELDS_OF_INTEREST_FOR_DIGITAL_HEALTH = [
+    'participantId', 'digitalHealthSharingStatus'
+]
+
 
 def get_access_token():
     """
@@ -62,12 +66,16 @@ def get_access_token():
     return access_token
 
 
-def get_participant_data(api_project_id: str, params: Dict) -> List[Dict]:
+def get_participant_data(api_project_id: str,
+                         params: Dict,
+                         required_fields: List[str] = None) -> List[Dict]:
     """
     Fetches participant data via ParticipantSummary API
 
     :param api_project_id: RDR project id when PS API rests
     :param params: the fields and their values
+    :param required_fields: filter participants not containing any of the fields.
+        Use only if API cannot filter fields via params. If unspecified, fetches all participants
 
     :return: list of data fetched from the ParticipantSummary API
     """
@@ -92,7 +100,12 @@ def get_participant_data(api_project_id: str, params: Dict) -> List[Dict]:
             LOGGER.warning(f'Error: API request failed because {resp}')
         else:
             r_json = resp.json()
-            participant_data += r_json.get('entry', {})
+            participant_data += r_json.get(
+                'entry', {}) if not required_fields else [
+                    row for row in r_json.get('entry', {})
+                    if row.get('resource', {}).keys() &
+                    set(required_fields) == set(required_fields)
+                ]
             if 'link' in r_json:
                 link_obj = r_json.get('link')
                 link_url = link_obj[0].get('url')
@@ -258,6 +271,36 @@ def get_org_participant_information(project_id: str,
     return df
 
 
+def get_digital_health_information(project_id: str):
+    """
+    Fetches the necessary participant information for a particular site.
+    :param project_id: The RDR project hosting the API
+    :return: a dataframe of participant information
+    :raises: RuntimeError if the project_id is not a string
+    :raises: TimeoutError if response takes longer than 10 minutes
+    """
+    # Parameter checks
+    if not isinstance(project_id, str):
+        raise RuntimeError(f'Please specify the RDR project')
+
+    # Make request to get API version. This is the current RDR version for reference see
+    # see https://github.com/all-of-us/raw-data-repository/blob/master/opsdataAPI.md for documentation of this API.
+    params = {'_sort': 'participantId', '_count': '5000'}
+
+    participant_data = get_participant_data(
+        project_id,
+        params=params,
+        required_fields=FIELDS_OF_INTEREST_FOR_DIGITAL_HEALTH)
+
+    column_map = {'participant_id': 'person_id'}
+
+    df = process_api_data_to_df(participant_data,
+                                FIELDS_OF_INTEREST_FOR_DIGITAL_HEALTH,
+                                column_map)
+
+    return df
+
+
 def participant_id_to_int(participant_id):
     """
     Transforms the participantId received from RDR ParticipantSummary API from an
@@ -324,3 +367,8 @@ def store_participant_data(df, project_id, destination_table, schema=None):
     job.result()
 
     return job.job_id
+
+
+if __name__ == '__main__':
+    data = get_digital_health_information('all-of-us-rdr-prod')
+    print(data)
