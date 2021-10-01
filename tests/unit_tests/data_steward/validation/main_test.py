@@ -215,8 +215,10 @@ class ValidationMainTest(TestCase):
                                          mock_hpo_bucket):
         http_error_string = 'fake http error'
         mock_hpo_csv.return_value = [{'hpo_id': self.hpo_id}]
+        resp = mock.MagicMock()
+        resp.reason = http_error_string
         mock_list_bucket.side_effect = googleapiclient.errors.HttpError(
-            http_error_string, http_error_string.encode())
+            resp, http_error_string.encode())
         with main.app.test_client() as c:
             c.get(main_consts.PREFIX + 'ValidateAllHpoFiles')
             expected_call = mock.call(
