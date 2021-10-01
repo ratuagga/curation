@@ -470,7 +470,10 @@ class ValidationMainTest(TestCase):
             return []
 
         def query_rows_error(q):
-            raise googleapiclient.errors.HttpError(500, b'bar', 'baz')
+            resp = mock.MagicMock()
+            resp.reason = 'baz'
+            resp.status_code = 500
+            raise googleapiclient.errors.HttpError(resp, resp.reason.encode())
 
         def upload_string_to_gcs(bucket, filename, content):
             return True
