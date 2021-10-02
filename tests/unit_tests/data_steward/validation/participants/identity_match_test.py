@@ -2,6 +2,7 @@
 from __future__ import print_function
 import os
 import unittest
+from unittest import mock
 
 # Third party imports
 import googleapiclient
@@ -286,10 +287,13 @@ class IdentityMatchTest(unittest.TestCase):
 
     def test_match_participants_same_participant_simulate_ehr_read_errors(self):
         # pre conditions
+        resp = mock.MagicMock()
+        resp.status_code = 500
+        resp.reason = 'baz'
         self.mock_ehr_person.side_effect = googleapiclient.errors.HttpError(
-            500, b'bar', b'baz')
+            resp, resp.reason.encode())
 
-        # test
+        # testx
         id_match.match_participants(self.project, self.rdr_dataset,
                                     self.pii_dataset, self.dest_dataset)
 
