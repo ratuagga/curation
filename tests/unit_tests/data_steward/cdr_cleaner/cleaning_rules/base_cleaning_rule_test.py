@@ -5,6 +5,7 @@ The point is to make it explicitly clear what is and is not required.
 """
 # Python imports
 import unittest
+from unittest import mock
 
 # Third party imports
 import googleapiclient
@@ -459,11 +460,14 @@ class BaseCleaningRuleTest(unittest.TestCase):
         """
         Test logging queries and its error handling.
         """
+        resp = mock.MagicMock()
+        resp.status_code = 400
+        resp.reason = 'bad http error'
         error_list = [
             KeyError('bad fake key'),
             oauth2client.client.HttpAccessTokenRefreshError(
                 'bad refresh token'),
-            googleapiclient.errors.HttpError(b'404', b'bad http error')
+            googleapiclient.errors.HttpError(resp, resp.reason.encode())
         ]
         mock_query_list.side_effect = error_list
 
