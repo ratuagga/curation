@@ -331,8 +331,11 @@ class IdentityMatchTest(unittest.TestCase):
 
     def test_match_participants_same_participant_simulate_write_errors(self):
         # pre conditions
+        resp = mock.MagicMock()
+        resp.status_code = 500
+        resp.reason = 'baz'
         self.mock_table_write.side_effect = googleapiclient.errors.HttpError(
-            500, b'bar', b'baz')
+            resp, resp.reason.encode())
 
         # test
         id_match.match_participants(self.project, self.rdr_dataset,
